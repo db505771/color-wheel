@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+>
+
+<title>Color Picker</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Arial, sans-serif;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 100%;
+  max-width: 360px;
+  padding: 20px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 22px;
+}
+
+.wheel-container {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+#wheel {
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+
+  background: conic-gradient(
+    #ff0000,
+    #ffff00,
+    #00ff00,
+    #00ffff,
+    #0000ff,
+    #ff00ff,
+    #ff0000
+  );
+
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.25);
+}
+
+#selector {
+  position: absolute;
+
+  width: 28px;
+  height: 28px;
+
+  border-radius: 50%;
+
+  border: 3px solid white;
+
+  box-shadow:
+    0 0 0 2px rgba(0, 0, 0, 0.35);
+
+  pointer-events: none;
+
+  transform: translate(-50%, -50%);
+
+  left: 50%;
+  top: 50%;
+}
+
+.color-info {
+  margin-top: 24px;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview {
+  width: 38px;
+  height: 38px;
+
+  border-radius: 50%;
+
+  background: #ff0000;
+
+  border: 2px solid rgba(255,255,255,0.8);
+}
+
+.hex {
+  color: white;
+
+  font-size: 19px;
+  font-weight: 600;
+
+  letter-spacing: 0.5px;
+}
+
+.copy-button {
+  margin-top: 18px;
+
+  width: 180px;
+  height: 46px;
+
+  border: none;
+  border-radius: 14px;
+
+  background: white;
+  color: black;
+
+  font-size: 16px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.copy-button:active {
+  transform: scale(0.96);
+}
+
+.status {
+  height: 20px;
+
+  margin-top: 10px;
+
+  color: rgba(255,255,255,0.7);
+
+  font-size: 13px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="title">
+    Choose a Color
+  </div>
+
+  <div class="wheel-container">
+
+    <div id="wheel"></div>
+
+    <div id="selector"></div>
+
+  </div>
+
+  <div class="color-info">
+
+    <div class="preview" id="preview"></div>
+
+    <div class="hex" id="hex">
+      #FF0000
+    </div>
+
+  </div>
+
+  <button class="copy-button" id="copy">
+    Copy HEX
+  </button>
+
+  <div class="status" id="status"></div>
+
+</div>
+
+
+<script>
+
+const wheel = document.getElementById("wheel");
+const selector = document.getElementById("selector");
+const preview = document.getElementById("preview");
+const hexText = document.getElementById("hex");
+const copyButton = document.getElementById("copy");
+const status = document.getElementById("status");
+
+let currentColor = "#FF0000";
+
+
+function getColor(x, y) {
+
+  const rect = wheel.getBoundingClientRect();
+
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+
+  let dx = x - centerX;
+  let dy = y - centerY;
+
+  let distance = Math.sqrt(dx * dx + dy * dy);
+
+  const radius = rect.width / 2;
+
+  /*
+    Keep the selector inside the wheel.
+  */
+
+  if (distance > radius) {
+
+    dx = dx / distance * radius;
+    dy = dy / distance * radius;
+
+    distance = radius;
+  }
+
+
+  /*
+    Calculate hue from angle.
+  */
+
+  let angle = Math.atan2(dy, dx);
+
+  let hue = angle * 180 / Math.PI;
+
+  hue = (hue + 90 + 360) % 360;
+
+
+  /*
+    Saturation is based on distance
+    from the center.
+  */
+
+  let saturation = distance / radius * 100;
+
+
+  /*
+    Use HSL to create the color.
+  */
+
+  const color = hslToHex(
+    hue,
+    saturation,
+    50
+  );
+
+
+  /*
+    Move selector.
+  */
+
+  selector.style.left =
+    (dx + radius) + "px";
+
+  selector.style.top =
+    (dy + radius) + "px";
+
+
+  /*
+    Update color.
+  */
+
+  currentColor = color;
+
+  hexText.textContent = color;
+
+  preview.style.backgroundColor = color;
+}
+
+
+function hslToHex(h, s, l) {
+
+  s /= 100;
+  l /= 100;
+
+  const k = n =>
+    (n + h / 30) % 12;
+
+  const a =
+    s * Math.min(
+      l,
+      1 - l
+    );
+
+  const f = n =>
+    l -
+    a *
+    Math.max(
+      -1,
+      Math.min(
+        k(n) - 3,
+        Math.min(
+          9 - k(n),
+          1
+        )
+      )
+    );
+
+  return "#" +
+    [f(0), f(8), f(4)]
+      .map(x =>
+        Math.round(255 * x)
+          .toString(16)
+          .padStart(2, "0")
+      )
+      .join("")
+      .toUpperCase();
+}
+
+
+/*
+  Mouse support
+*/
+
+wheel.addEventListener(
+  "mousedown",
+  function(event) {
+
+    getColor(
+      event.clientX,
+      event.clientY
+    );
+
+    dragging = true;
+  }
+);
+
+
+let dragging = false;
+
+
+document.addEventListener(
+  "mousemove",
+  function(event) {
+
+    if (!dragging) return;
+
+    getColor(
+      event.clientX,
+      event.clientY
+    );
+  }
+);
+
+
+document.addEventListener(
+  "mouseup",
+  function() {
+
+    dragging = false;
+  }
+);
+
+
+/*
+  Touch support
+*/
+
+wheel.addEventListener(
+  "touchstart",
+  function(event) {
+
+    event.preventDefault();
+
+    const touch =
+      event.touches[0];
+
+    getColor(
+      touch.clientX,
+      touch.clientY
+    );
+
+  },
+  { passive: false }
+);
+
+
+wheel.addEventListener(
+  "touchmove",
+  function(event) {
+
+    event.preventDefault();
+
+    const touch =
+      event.touches[0];
+
+    getColor(
+      touch.clientX,
+      touch.clientY
+    );
+
+  },
+  { passive: false }
+);
+
+
+/*
+  Copy HEX
+*/
+
+copyButton.addEventListener(
+  "click",
+  async function() {
+
+    try {
+
+      await navigator.clipboard.writeText(
+        currentColor
+      );
+
+      status.textContent =
+        "Copied!";
+
+    } catch (error) {
+
+      /*
+        Fallback for WebViews
+      */
+
+      const input =
+        document.createElement("input");
+
+      input.value =
+        currentColor;
+
+      document.body.appendChild(input);
+
+      input.select();
+
+      document.execCommand("copy");
+
+      input.remove();
+
+      status.textContent =
+        "Copied!";
+    }
+
+    setTimeout(
+      function() {
+
+        status.textContent = "";
+
+      },
+      1500
+    );
+
+  }
+);
+
+</script>
+
+</body>
+</html>
